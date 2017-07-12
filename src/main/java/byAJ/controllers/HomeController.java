@@ -1,7 +1,9 @@
 package byAJ.controllers;
 
 import byAJ.configs.CloudinaryConfig;
+import byAJ.models.Photo;
 import byAJ.models.User;
+import byAJ.repositories.PhotoRepository;
 import byAJ.services.UserService;
 import byAJ.validators.UserValidator;
 import com.cloudinary.Singleton;
@@ -19,14 +21,19 @@ import com.cloudinary.Cloudinary;
 
 import javax.validation.Valid;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.Principal;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 @Controller
 public class HomeController {
+	
+	String photouser;
 
     @Autowired
     CloudinaryConfig cloudc;
@@ -36,6 +43,9 @@ public class HomeController {
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private PhotoRepository photoRepository;
 
     @RequestMapping("/")
     public String index(){
@@ -77,12 +87,13 @@ public class HomeController {
     }
 
     @GetMapping("/upload")
-    public String uploadForm(){
+    public String uploadForm(Model model){
+    model.addAttribute("pho", new Photo());
         return "upload";
     }
 
     @PostMapping("/upload")
-    public String singleImageUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes, Model model){
+    public String singleImageUpload(@RequestParam("file") MultipartFile file, RedirectAttributes redirectAttributes, Model model, @ModelAttribute Photo pho, Principal p){
 
         if (file.isEmpty()){
             redirectAttributes.addFlashAttribute("message","Please select a file to upload");
@@ -92,15 +103,37 @@ public class HomeController {
         try {
             Map uploadResult =  cloudc.upload(file.getBytes(), ObjectUtils.asMap("resourcetype", "auto"));
 
-            model.addAttribute("message",
-                    "You successfully uploaded '" + file.getOriginalFilename() + "'");
+            model.addAttribute("message","You successfully uploaded '" + file.getOriginalFilename() + "'");
             model.addAttribute("imageurl", uploadResult.get("url"));
             String filename = uploadResult.get("public_id").toString() + "." + uploadResult.get("format").toString();
             model.addAttribute("sizedimageurl", cloudc.createUrl(filename,100,150, "fit"));
+          //model.addAttribute("cropedimageurl", cloudc.createCropedUrl(filename,100,150, "fit","sepia"));
+            photouser= p.getName();
+            pho.setUsername(photouser);
+            pho.setCreatedAt(new Date());
+            pho.setImage("<img src='http://res.cloudinary.com/beticloud/image/upload/c_scale,h_100,w_100/"+filename+"'/>");
+            photoRepository.save(pho);
         } catch (IOException e){
             e.printStackTrace();
             model.addAttribute("message", "Sorry I can't upload that!");
         }
-        return "upload";
+      
+        return "redirect:/photo";
     }
+    @RequestMapping(value="/photo")
+    public String photoview(Photo pho,  Model model, Principal p ){
+    String phouser = p.getName();
+    Iterable<Photo> photoList = photoRepository.findByUsername(phouser);
+    model.addAttribute("newphoto", photoList);
+    	return "view";
+    }
+    @RequestMapping(value="/delete/{id}")
+    public String deletePhoto(@PathVariable(value ="id") long id,  Model model, Principal p ){
+     photoRepository.delete(id);
+       	return "view";
+    }
+    
+   
+    
+    
 }

@@ -38,4 +38,9 @@ public class CloudinaryConfig {
                 .transformation(new Transformation().width(width).height(height).border("2px_solid_black").crop(action))
                 .imageTag(name);
     }
+    /*public String createCropedUrl(String name, int width, int height, String action, String fillter){
+        return cloudinary.url()
+        		.transformation(new Transformation().width(width).height(height).border("2px_solid_black").crop(action).effect(fillter))
+                .imageTag(name);
+    }*/
 }
